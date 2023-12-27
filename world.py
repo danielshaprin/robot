@@ -75,8 +75,8 @@ class World:
         st = self.status
         print(f"At time {self.time:5.1f}")#: my coordinates ({st.gpsLat:.9f}, {st.gpsLon:.9f})")
         # print("Speeds %.9f, %.9f, %.9f, %.9f" % (st.spdFL, st.spdFR, st.spdBL, st.spdBR))
-        print("steering angles (%.9f, %.9f)" % (math.degrees(st.steerFL), math.degrees(st.steerFR)), end="")
-        print(f"pointing to {self.status.hdg}", end="")
+        # print("steering angles (%.9f, %.9f)" % (math.degrees(st.steerFL), math.degrees(st.steerFR)), end="")
+        # print(f"pointing to {self.status.hdg}", end="")
         print(", distanceToTarget = %.3f, angleToTarget = %.3f" % (st.distanceToTarget, self.get_dir_angle_to_target()))
         #print(f'Angle to target: {self.get_dir_angle_to_target()}')
         #print(self.status.spdFL, self.status.spdFR, self.status.spdBL, self.status.spdBR)
@@ -116,10 +116,22 @@ class World:
     def get_dir_angle_to_target_from_travel(self):
         return directional_angle_between_vectors(self.get_robot_dir_from_travel(), self.get_dest_dir())
 
+    def plot_turn(self, back_left_wheel, back_right_wheel, front_left_wheel, front_right_wheel, robot_pos, robot_dir, target, center, radius):
+        fig, ax = plt.subplots()
+        ax.scatter([back_left_wheel[0], back_right_wheel[0], front_left_wheel[0], front_right_wheel[0], (robot_pos + robot_dir)[0], target[0], center[0]],
+        [back_left_wheel[1], back_right_wheel[1], front_left_wheel[1], front_right_wheel[1], (robot_pos + robot_dir)[1], target[1], center[1]] )
+        plt.gca().add_patch(plt.Circle(center,radius, edgecolor='red', facecolor='none'))
+        ax.annotate('back_left_wheel', (back_left_wheel[0], back_left_wheel[1]))
+        ax.annotate('back_right_wheel', (back_right_wheel[0], back_right_wheel[1]))
+        ax.annotate('front_left_wheel', (front_left_wheel[0], front_left_wheel[1]))
+        ax.annotate('front_right_wheel', (front_right_wheel[0], front_right_wheel[1]))
+        ax.annotate('dir', ((robot_pos + robot_dir)[0], (robot_pos + robot_dir)[1]))
+        plt.show()
+
     def turn_to_point(self, target):
         if self.status.distanceToTarget < 5:
             return
-        
+
         robot_dir = self.get_robot_dir()
         robot_pos = self.get_robot_pos()
         back_wheels_mid_point = robot_pos - robot_dir * TRACK/2
@@ -130,37 +142,25 @@ class World:
         front_right_wheel = front_wheels_mid_point + np.array((robot_dir[1], -robot_dir[0])) * (WHEEL_BASE / 2)
 
         center, radius = get_turn(back_left_wheel, back_right_wheel, front_wheels_mid_point, target)
-        
+
         left_angle = np.dot(robot_dir, normalize(center - front_left_wheel))
         left_angle = math.degrees(left_angle)
         right_angle = np.dot(robot_dir, normalize(center - front_right_wheel ))
         right_angle = math.degrees(right_angle)
-        
+
         dir_of_center = np.cross((center-robot_pos), robot_dir)
-        # print("LEFT!!!!" if dir_of_center<0 else "RIGHT!!!!")
         # print(f'left_angle: {left_angle:2.2f} right_angle:{right_angle:2.2f}')
         if dir_of_center<0:
             left_angle *= -1
             right_angle *= -1
 
 
-        if self.status.distanceToTarget < 13 and False:
-            fig, ax = plt.subplots()
-            ax.scatter([back_left_wheel[0], back_right_wheel[0], front_left_wheel[0], front_right_wheel[0], (robot_pos + robot_dir)[0], target[0], center[0]],
-            [back_left_wheel[1], back_right_wheel[1], front_left_wheel[1], front_right_wheel[1], (robot_pos + robot_dir)[1], target[1], center[1]] )
-            plt.gca().add_patch(plt.Circle(center,radius, edgecolor='red', facecolor='none'))
-            ax.annotate('back_left_wheel', (back_left_wheel[0], back_left_wheel[1]))
-            ax.annotate('back_right_wheel', (back_right_wheel[0], back_right_wheel[1]))
-            ax.annotate('front_left_wheel', (front_left_wheel[0], front_left_wheel[1]))
-            ax.annotate('front_right_wheel', (front_right_wheel[0], front_right_wheel[1]))
-            ax.annotate('dir', ((robot_pos + robot_dir)[0], (robot_pos + robot_dir)[1]))
-            # plt.axes().set_aspect('equal')
-            plt.show()
+        # self.plot_turn(back_left_wheel, back_right_wheel, front_left_wheel, front_right_wheel, robot_pos, robot_dir, target, center, radius)
+        
         self.sess.setSteering(left_angle, right_angle)
 
 def plot(world):
     x,y = np.transpose(world.roobot_positions)
-    # Create scatter plot
     plt.scatter(x, y, label='Data Points')
     
     # Draw confidence circles around each point
@@ -169,17 +169,13 @@ def plot(world):
        circle = Circle((xi, yi), confidence_radius, edgecolor='red', facecolor='none', linestyle='dotted')
        plt.gca().add_patch(circle)
     
-    # Set axis labels and title
     plt.xlabel('X-axis')
     plt.ylabel('Y-axis')
     plt.title('Scatter Plot with Confidence Circles')
     
     plt.scatter([world.get_dest_pos()[0]], [world.get_dest_pos()[1]], color='red')
-
-    # Display legend
     plt.legend()
     
-    # Show the plot
     plt.show()
 
 
@@ -195,15 +191,14 @@ def run(seed):
     
     rotation_traveled = 0
     radius = (WHEEL_BASE**2 + TRACK**2)**0.5
-    #radius = 1.24231959206
     time_to_rotate = abs(initial_angle_to_target)*radius
     sess.setSpeeds(*speeds)
     world.update(time_to_rotate/2)
-    #world.report()
+    world.report()
     angle_to_target = world.get_dir_angle_to_target()
     sess.setSpeeds(0,0,0,0)
     world.update(time_to_rotate/2)
-    #world.report()
+    world.report()
 
     sess.setSpeeds(4.39,4.39,4.39,4.39)
     i = 0
@@ -213,13 +208,7 @@ def run(seed):
         world.update()
         world.get_dir_angle_to_target_from_travel()
         world.turn_to_point(world.get_dest_pos())
-        # print('Angle to target: ', world.get_dir_angle_to_target_from_travel())
-        # world.report()
-        # i+=1
-        # if i%100 == 0:
-            # plot(world)
-        #if world.status.distanceToTarget <= 13:
-        #    sess.setSpeeds(.5,.5,.5,.5)
+        world.report()
         if world.status.distanceToTarget <= 1.7:
             sess.finish()
             return True
@@ -235,6 +224,5 @@ def run(seed):
 
 
 if __name__ == '__main__':
-    for i in range(1,10000):
-        print("Success!" if run(i) else "Fail!")
+    print("Success!" if run(42) else "Fail!")
 
