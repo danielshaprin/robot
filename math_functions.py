@@ -1,3 +1,4 @@
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -30,6 +31,9 @@ def get_turn(back_left_wheel,back_righ_wheel,center,target):
     turn_center = find_intersection_between_two_lines(target_line, (m,c))
     turn_radius = np.linalg.norm(np.array(turn_center)-np.array(target))
     return turn_center, turn_radius
+
+def gnss_to_meters(origin_lat, relative_lat, relative_lon):
+    return np.asarray((relative_lat*111111.111, relative_lon*111111.111*math.cos(math.radians(origin_lat))))
 
 if __name__ == '__main__':
     W1 = [2,3]
